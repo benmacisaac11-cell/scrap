@@ -54,13 +54,23 @@ button { font: inherit; -webkit-appearance: none; appearance: none; cursor: poin
   function bytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
   function has(id) { return data.stories.some(function (s) { return s.id === id; }); }
 
-  if (!/^[A-Za-z0-9_-]{16,64}$/.test(TOPIC) || KEY.length < 40) {
-    document.getElementById('wait').textContent = 'Open this page from the link in your swim/run note or the phone notification.';
-    return;
-  }
-
   function send(cmd) {
     return fetch('https://ntfy.sh/' + TOPIC, { method: 'POST', body: cmd }).then(function (r) { if (!r.ok) throw new Error(r.status); });
+  }
+
+  var wait = document.getElementById('wait'), okTopic = /^[A-Za-z0-9_-]{16,64}$/.test(TOPIC);
+  if (okTopic && KEY.length < 40 && /^[a-f0-9]{8}$/.test(P.get('id') || '')) {      // a Scrap link from a saved copy of the PDF menu
+    wait.textContent = 'Scrap "' + (P.get('n') || 'this story') + '"? ';
+    var go = el('button', 'scrap', 'Scrap it'); wait.appendChild(go);
+    go.onclick = function () {
+      send('scrap ' + P.get('id')).then(function () { wait.textContent = 'Scrapped. A new story lands in the folder within a few minutes. Open 000 MENU in the folder again for the live menu.'; })
+        .catch(function () { wait.textContent = 'No connection. Reload and tap again.'; });
+    };
+    return;
+  }
+  if (!okTopic || KEY.length < 40) {
+    wait.textContent = 'Open this page from the button at the top of 000 MENU in your Episodes folder.';
+    return;
   }
 
   function load() {
