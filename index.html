@@ -2,49 +2,171 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<title>Scrap a story</title>
+<meta name="apple-mobile-web-app-title" content="Swim menu">
+<title>Swim / run menu</title>
 <style>
-  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #111827; }
-  main { width: min(92vw, 420px); background: #fff; border-radius: 18px; padding: 28px 24px; box-shadow: 0 6px 24px rgba(0,0,0,.08); text-align: center; }
-  h1 { font-size: 22px; margin: 0 0 6px; }
-  p { font-size: 17px; line-height: 1.4; color: #374151; margin: 0 0 22px; }
-  button { display: block; width: 100%; font-size: 19px; font-weight: 700; border: 0; border-radius: 14px; padding: 16px; margin: 0 0 12px; }
-  #yes { background: #b91c1c; color: #fff; }
-  #no { background: #e5e7eb; color: #111827; }
-  button:disabled { opacity: .5; }
-  @media (prefers-color-scheme: dark) { body { background: #0f172a; color: #f1f5f9; } main { background: #1e293b; } p { color: #cbd5e1; } #no { background: #334155; color: #f1f5f9; } }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; background: #fff; color: #111827; font-size: 16px; line-height: 1.38; }
+main { max-width: 620px; margin: 0 auto; padding: 18px 14px calc(40px + env(safe-area-inset-bottom)); }
+h1 { font-size: 24px; margin: 0 0 4px; }
+.how { color: #374151; margin: 0 0 16px; }
+.card { border-left: 6px solid #475569; background: #f8fafc; border-radius: 8px; padding: 11px 13px; margin: 0 0 12px; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.num { font-size: 23px; font-weight: 800; letter-spacing: .2px; }
+.tags { display: flex; gap: 6px; align-items: center; }
+.kind, .new { color: #fff; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.new { background: #111827; }
+.title { font-size: 19px; font-weight: 700; margin-top: 2px; }
+.meta { color: #6b7280; font-size: 13.5px; margin: 1px 0 6px; }
+.tip { margin-top: 6px; font-size: 14.5px; font-weight: 600; color: #7c2d12; }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; }
+.rate { font-size: 13.5px; color: #92400e; font-weight: 600; }
+button { font: inherit; -webkit-appearance: none; appearance: none; cursor: pointer; touch-action: manipulation; }
+.scrap { flex: none; font-size: 15px; font-weight: 700; color: #b91c1c; border: 1.5px solid #b91c1c; border-radius: 22px; padding: 9px 20px; background: #fff; }
+.scrap:active { background: #fee2e2; }
+.undo { flex: none; font-size: 15px; font-weight: 700; color: #fff; border: 0; border-radius: 22px; padding: 10px 22px; background: #111827; }
+.gone { border-left-color: #9ca3af; background: #f3f4f6; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.gone b { display: block; }
+.gone span { color: #4b5563; font-size: 14.5px; }
+.note { background: #fef3c7; border-radius: 8px; padding: 10px 13px; margin: 0 0 12px; font-size: 14.5px; }
+.stamp { color: #9ca3af; font-size: 12.5px; text-align: center; margin-top: 18px; }
+@keyframes flash { from { background: #fee2e2; } to { background: #f3f4f6; } }
+.gone.fresh { animation: flash .8s ease-out; }
 </style>
 </head>
 <body>
-<main>
-  <h1 id="head">Scrap this story?</h1>
-  <p id="text"></p>
-  <button id="yes">Scrap it</button>
-  <button id="no">Keep it</button>
-</main>
+<main id="app"><h1>Swim / run menu</h1><p class="how" id="wait">Loading the menu…</p></main>
 <script>
-  const q = new URLSearchParams(location.hash.slice(1));
-  const topic = q.get("t") || "", id = q.get("id") || "", name = q.get("n") || "this story";
-  const head = document.getElementById("head"), text = document.getElementById("text");
-  const yes = document.getElementById("yes"), no = document.getElementById("no");
-  const valid = /^[A-Za-z0-9_-]{16,64}$/.test(topic) && /^[a-f0-9]{8}$/.test(id);
-  const end = (h, t) => { head.textContent = h; text.textContent = t; yes.remove(); no.remove(); };
-  if (!valid) end("This link is out of date", "Open the newest menu in the folder and tap Scrap there.");
-  else text.textContent = name + " leaves the folder and a new story takes its place.";
-  no.onclick = () => end("Kept", "Nothing changed. You can close this page.");
-  yes.onclick = async () => {
-    yes.disabled = true; yes.textContent = "Sending…";
-    try {
-      const r = await fetch("https://ntfy.sh/" + topic, { method: "POST", body: "scrap " + id });
-      if (!r.ok) throw new Error(r.status);
-      end("Scrapped", "A new story lands in the folder within a few minutes. Your phone gets a notification with its numbers and an Undo button.");
-    } catch (e) {
-      yes.disabled = false; yes.textContent = "Scrap it";
-      text.textContent = "That did not send. Check your connection and tap again.";
-    }
-  };
+(function () {
+  var P = new URLSearchParams(location.hash.slice(1));
+  var KEY = P.get('k') || '', TOPIC = P.get('t') || '';
+  var app = document.getElementById('app');
+  var LS = 'swimmenu.pending';
+  var pending = {};
+  try { pending = JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) {}
+  var data = null, fresh = null, note = '', timer = null;
+
+  function save() { try { localStorage.setItem(LS, JSON.stringify(pending)); } catch (e) {} }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function bytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+  function has(id) { return data.stories.some(function (s) { return s.id === id; }); }
+
+  if (!/^[A-Za-z0-9_-]{16,64}$/.test(TOPIC) || KEY.length < 40) {
+    document.getElementById('wait').textContent = 'Open this page from the link in your swim/run note or the phone notification.';
+    return;
+  }
+
+  function send(cmd) {
+    return fetch('https://ntfy.sh/' + TOPIC, { method: 'POST', body: cmd }).then(function (r) { if (!r.ok) throw new Error(r.status); });
+  }
+
+  function load() {
+    return fetch('menu.bin?v=' + Date.now(), { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+      .then(function (buf) {
+        var all = new Uint8Array(buf);
+        return crypto.subtle.importKey('raw', bytes(KEY), { name: 'AES-CBC' }, false, ['decrypt'])
+          .then(function (k) { return crypto.subtle.decrypt({ name: 'AES-CBC', iv: all.slice(0, 16) }, k, all.slice(16)); });
+      })
+      .then(function (plain) {
+        var d = JSON.parse(new TextDecoder().decode(plain));
+        if (!data || d.updated >= data.updated) data = d;
+        settle(); render();
+      })
+      .catch(function () { if (!data) document.getElementById('wait').textContent = 'The menu did not load. Check the connection and pull down to refresh.'; });
+  }
+
+  // pending[id] = {t, title, state}: "scrapped" (tap sent) or "restoring" (undo sent)
+  function settle() {
+    var now = Date.now(), live = false;
+    Object.keys(pending).forEach(function (id) {
+      var p = pending[id], here = has(id), age = now - p.t;
+      if (p.state === 'scrapped') {
+        if (here && age > 30 * 60000) delete pending[id];          // the swap never happened: show the card again
+        else if (!here && age > 24 * 3600000) delete pending[id];  // undo row stays for a day
+        else if (here) live = true;
+      } else {
+        if ((here && data.updated * 1000 > p.t) || age > 30 * 60000) delete pending[id];
+        else live = true;
+      }
+    });
+    save();
+    clearInterval(timer); timer = null;
+    if (live) timer = setInterval(load, 40000);
+  }
+
+  function scrap(s) {
+    pending[s.id] = { t: Date.now(), title: s.title, state: 'scrapped' }; fresh = s.id; note = ''; save(); settle(); render();
+    send('scrap ' + s.id).catch(function () {
+      delete pending[s.id]; note = 'No connection, so "' + s.title + '" was not scrapped. Tap Scrap again.'; save(); settle(); render();
+    });
+  }
+
+  function undo(id) {
+    var p = pending[id], before = { t: p.t, title: p.title, state: p.state };
+    pending[id] = { t: Date.now(), title: p.title, state: 'restoring' }; note = ''; save(); settle(); render();
+    send('undo ' + id).catch(function () {
+      pending[id] = before; note = 'No connection, so "' + p.title + '" is still scrapped. Tap Undo again.'; save(); settle(); render();
+    });
+  }
+
+  function goneRow(id, text) {
+    var p = pending[id], row = el('div', 'card gone' + (fresh === id ? ' fresh' : ''));
+    var words = el('div'); words.appendChild(el('b', null, 'Scrapped: ' + p.title)); words.appendChild(el('span', null, text));
+    var b = el('button', 'undo', 'Undo'); b.onclick = function () { undo(id); };
+    row.appendChild(words); row.appendChild(b);
+    return row;
+  }
+
+  function card(s) {
+    var c = el('div', 'card'); c.style.borderLeftColor = s.col; c.id = 's' + (s.id || '');
+    var top = el('div', 'top'); top.appendChild(el('span', 'num', s.nums));
+    var tags = el('div', 'tags');
+    if (s.added && Date.now() - new Date(s.added).getTime() < 7 * 86400000) tags.appendChild(el('span', 'new', 'New'));
+    if (s.kind) { var k = el('span', 'kind', s.kind); k.style.background = s.col; tags.appendChild(k); }
+    top.appendChild(tags); c.appendChild(top);
+    c.appendChild(el('div', 'title', s.title));
+    c.appendChild(el('div', 'meta', s.meta));
+    if (s.about) c.appendChild(el('div', 'about', s.about));
+    if (s.tip) c.appendChild(el('div', 'tip', s.tip));
+    var foot = el('div', 'foot'); foot.appendChild(el('span', 'rate', s.rating ? '★ ' + s.rating : ''));
+    if (s.id) { var b = el('button', 'scrap', 'Scrap ✕'); b.onclick = function () { scrap(s); }; foot.appendChild(b); }
+    c.appendChild(foot);
+    return c;
+  }
+
+  function render() {
+    var y = window.scrollY;
+    app.textContent = '';
+    app.appendChild(el('h1', null, 'Swim / run menu'));
+    app.appendChild(el('p', 'how', 'Pick a story, then load the files with those numbers. Tap Scrap on any story you don’t fancy and a new one takes its place within a few minutes. ' + data.stories.length + ' stories, ' + data.total + ' of listening.'));
+    if (note) app.appendChild(el('div', 'note', note));
+    Object.keys(pending).forEach(function (id) {
+      var p = pending[id];
+      if (p.state === 'scrapped' && !has(id)) app.appendChild(goneRow(id, 'Gone from the folder.'));
+      if (p.state === 'restoring' && !has(id)) app.appendChild(el('div', 'note', 'Bringing back "' + p.title + '". It shows here with its numbers in a couple of minutes.'));
+    });
+    data.stories.forEach(function (s) {
+      var p = s.id && pending[s.id];
+      app.appendChild(p && p.state === 'scrapped' ? goneRow(s.id, 'A new story is on its way. Numbers update here in a few minutes.') : card(s));
+    });
+    app.appendChild(el('div', 'stamp', 'File numbers as of ' + new Date(data.updated * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })));
+    fresh = null;
+    window.scrollTo(0, y);
+  }
+
+  load().then(function () {
+    var x = P.get('x');                       // a Scrap tap inside the PDF menu lands here with the story already chosen
+    if (!x || !data) return;
+    P.delete('x'); history.replaceState(null, '', '#' + P.toString());
+    var s = data.stories.filter(function (q) { return q.id === x; })[0];
+    if (s && !pending[x]) { scrap(s); var row = document.querySelector('.gone.fresh'); if (row) row.scrollIntoView({ block: 'center' }); }
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) load(); });
+})();
 </script>
 </body>
 </html>
