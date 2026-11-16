@@ -22,8 +22,14 @@ h1 { font-size: 24px; margin: 0 0 4px; }
 .title { font-size: 19px; font-weight: 700; margin-top: 2px; }
 .meta { color: #6b7280; font-size: 13.5px; margin: 1px 0 6px; }
 .tip { margin-top: 6px; font-size: 14.5px; font-weight: 600; color: #7c2d12; }
-.foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; }
-.rate { font-size: 13.5px; color: #92400e; font-weight: 600; }
+.rate { font-size: 13.5px; color: #92400e; font-weight: 600; margin-top: 8px; }
+.acts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 7px; margin-top: 10px; }
+.act { font-size: 14.5px; font-weight: 700; line-height: 1.2; border: 1.5px solid; border-radius: 12px; padding: 8px 3px 9px; background: #fff; text-align: center; }
+.act small { display: block; font-size: 12px; font-weight: 600; margin-top: 2px; }
+.act.s { color: #b91c1c; } .act.s:active { background: #fee2e2; }
+.act.l { color: #166534; } .act.l:active { background: #dcfce7; }
+.act.d { color: #92400e; } .act.d:active { background: #fef3c7; }
+.card.hit { outline: 3px solid #111827; }
 button { font: inherit; -webkit-appearance: none; appearance: none; cursor: pointer; touch-action: manipulation; }
 .scrap { flex: none; font-size: 15px; font-weight: 700; color: #b91c1c; border: 1.5px solid #b91c1c; border-radius: 22px; padding: 9px 20px; background: #fff; }
 .scrap:active { background: #fee2e2; }
@@ -108,24 +114,27 @@ button { font: inherit; -webkit-appearance: none; appearance: none; cursor: poin
     if (live) timer = setInterval(load, 40000);
   }
 
-  function scrap(s) {
-    pending[s.id] = { t: Date.now(), title: s.title, state: 'scrapped' }; fresh = s.id; note = ''; save(); settle(); render();
-    send('scrap ' + s.id).catch(function () {
-      delete pending[s.id]; note = 'No connection, so "' + s.title + '" was not scrapped. Tap Scrap again.'; save(); settle(); render();
+  // v: "scrap" = has not listened, "liked" / "disliked" = listened
+  var DID = { scrap: 'Scrapped', liked: 'Listened, liked it', disliked: 'Listened, didn’t like it' };
+  function scrap(s, v) {
+    v = v || 'scrap';
+    pending[s.id] = { t: Date.now(), title: s.title, state: 'scrapped', v: v }; fresh = s.id; note = ''; save(); settle(); render();
+    send(v + ' ' + s.id).catch(function () {
+      delete pending[s.id]; note = 'No connection, so "' + s.title + '" is still in the folder. Tap the button again.'; save(); settle(); render();
     });
   }
 
   function undo(id) {
-    var p = pending[id], before = { t: p.t, title: p.title, state: p.state };
+    var p = pending[id], before = { t: p.t, title: p.title, state: p.state, v: p.v };
     pending[id] = { t: Date.now(), title: p.title, state: 'restoring' }; note = ''; save(); settle(); render();
     send('undo ' + id).catch(function () {
-      pending[id] = before; note = 'No connection, so "' + p.title + '" is still scrapped. Tap Undo again.'; save(); settle(); render();
+      pending[id] = before; note = 'No connection, so "' + p.title + '" is still out of the folder. Tap Undo again.'; save(); settle(); render();
     });
   }
 
   function goneRow(id, text) {
     var p = pending[id], row = el('div', 'card gone' + (fresh === id ? ' fresh' : ''));
-    var words = el('div'); words.appendChild(el('b', null, 'Scrapped: ' + p.title)); words.appendChild(el('span', null, text));
+    var words = el('div'); words.appendChild(el('b', null, (DID[p.v] || DID.scrap) + ': ' + p.title)); words.appendChild(el('span', null, text));
     var b = el('button', 'undo', 'Undo'); b.onclick = function () { undo(id); };
     row.appendChild(words); row.appendChild(b);
     return row;
@@ -142,9 +151,15 @@ button { font: inherit; -webkit-appearance: none; appearance: none; cursor: poin
     c.appendChild(el('div', 'meta', s.meta));
     if (s.about) c.appendChild(el('div', 'about', s.about));
     if (s.tip) c.appendChild(el('div', 'tip', s.tip));
-    var foot = el('div', 'foot'); foot.appendChild(el('span', 'rate', s.rating ? '★ ' + s.rating : ''));
-    if (s.id) { var b = el('button', 'scrap', 'Scrap ✕'); b.onclick = function () { scrap(s); }; foot.appendChild(b); }
-    c.appendChild(foot);
+    if (s.rating) c.appendChild(el('div', 'rate', '★ ' + s.rating));
+    if (s.id) {
+      var acts = el('div', 'acts');
+      [['s', 'scrap', 'Scrap', 'haven’t listened'], ['l', 'liked', 'Listened', '👍 liked it'], ['d', 'disliked', 'Listened', '👎 didn’t like it']].forEach(function (o) {
+        var b = el('button', 'act ' + o[0], o[2]); b.appendChild(el('small', null, o[3]));
+        b.onclick = function () { scrap(s, o[1]); }; acts.appendChild(b);
+      });
+      c.appendChild(acts);
+    }
     return c;
   }
 
@@ -152,7 +167,7 @@ button { font: inherit; -webkit-appearance: none; appearance: none; cursor: poin
     var y = window.scrollY;
     app.textContent = '';
     app.appendChild(el('h1', null, 'Swim / run menu'));
-    app.appendChild(el('p', 'how', 'Pick a story, then load the files with those numbers. Tap Scrap on any story you don’t fancy and a new one takes its place within a few minutes. ' + data.stories.length + ' stories, ' + data.total + ' of listening.'));
+    app.appendChild(el('p', 'how', 'Pick a story, then load the files with those numbers. Don’t fancy one, or finished it? Tap a button on its card: it leaves the folder and a new story takes its place within a few minutes. ' + data.stories.length + ' stories, ' + data.total + ' of listening.'));
     if (note) app.appendChild(el('div', 'note', note));
     Object.keys(pending).forEach(function (id) {
       var p = pending[id];
@@ -161,7 +176,7 @@ button { font: inherit; -webkit-appearance: none; appearance: none; cursor: poin
     });
     data.stories.forEach(function (s) {
       var p = s.id && pending[s.id];
-      app.appendChild(p && p.state === 'scrapped' ? goneRow(s.id, 'A new story is on its way. Numbers update here in a few minutes.') : card(s));
+      app.appendChild(p && p.state === 'scrapped' ? goneRow(s.id, 'Leaving the folder. Numbers update here in a few minutes.') : card(s));
     });
     app.appendChild(el('div', 'stamp', 'File numbers as of ' + new Date(data.updated * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })));
     fresh = null;
@@ -174,6 +189,9 @@ button { font: inherit; -webkit-appearance: none; appearance: none; cursor: poin
     P.delete('x'); history.replaceState(null, '', '#' + P.toString());
     var s = data.stories.filter(function (q) { return q.id === x; })[0];
     if (s && !pending[x]) { scrap(s); var row = document.querySelector('.gone.fresh'); if (row) row.scrollIntoView({ block: 'center' }); }
+  }).then(function () {
+    var g = P.get('go'), c = g && document.getElementById('s' + g);   // a card link inside the PDF menu opens the page at that card
+    if (c) { c.scrollIntoView({ block: 'center' }); c.classList.add('hit'); }
   });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) load(); });
 })();
