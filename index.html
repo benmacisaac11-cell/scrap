@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Scrap a story</title>
+<style>
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #111827; }
+  main { width: min(92vw, 420px); background: #fff; border-radius: 18px; padding: 28px 24px; box-shadow: 0 6px 24px rgba(0,0,0,.08); text-align: center; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  p { font-size: 17px; line-height: 1.4; color: #374151; margin: 0 0 22px; }
+  button { display: block; width: 100%; font-size: 19px; font-weight: 700; border: 0; border-radius: 14px; padding: 16px; margin: 0 0 12px; }
+  #yes { background: #b91c1c; color: #fff; }
+  #no { background: #e5e7eb; color: #111827; }
+  button:disabled { opacity: .5; }
+  @media (prefers-color-scheme: dark) { body { background: #0f172a; color: #f1f5f9; } main { background: #1e293b; } p { color: #cbd5e1; } #no { background: #334155; color: #f1f5f9; } }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="head">Scrap this story?</h1>
+  <p id="text"></p>
+  <button id="yes">Scrap it</button>
+  <button id="no">Keep it</button>
+</main>
+<script>
+  const q = new URLSearchParams(location.hash.slice(1));
+  const topic = q.get("t") || "", id = q.get("id") || "", name = q.get("n") || "this story";
+  const head = document.getElementById("head"), text = document.getElementById("text");
+  const yes = document.getElementById("yes"), no = document.getElementById("no");
+  const valid = /^[A-Za-z0-9_-]{16,64}$/.test(topic) && /^[a-f0-9]{8}$/.test(id);
+  const end = (h, t) => { head.textContent = h; text.textContent = t; yes.remove(); no.remove(); };
+  if (!valid) end("This link is out of date", "Open the newest menu in the folder and tap Scrap there.");
+  else text.textContent = name + " leaves the folder and a new story takes its place.";
+  no.onclick = () => end("Kept", "Nothing changed. You can close this page.");
+  yes.onclick = async () => {
+    yes.disabled = true; yes.textContent = "Sending…";
+    try {
+      const r = await fetch("https://ntfy.sh/" + topic, { method: "POST", body: "scrap " + id });
+      if (!r.ok) throw new Error(r.status);
+      end("Scrapped", "A new story lands in the folder within a few minutes. Your phone gets a notification with its numbers and an Undo button.");
+    } catch (e) {
+      yes.disabled = false; yes.textContent = "Scrap it";
+      text.textContent = "That did not send. Check your connection and tap again.";
+    }
+  };
+</script>
+</body>
+</html>
